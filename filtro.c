@@ -1,3 +1,4 @@
+//coeficientes que devuelve python para el HIGH PASS FILTER
 float b[] = {2.98181864f ,-11.92727456f  ,17.89091183f ,-11.92727456f   ,2.98181864f}
 float a[] = {1.0f,-1.33293302f , 1.05282113f ,-0.3734322f  , 0.05754151f}
 

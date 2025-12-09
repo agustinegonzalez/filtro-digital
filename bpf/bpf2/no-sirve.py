@@ -10,12 +10,15 @@ MAGIC = b"\xA5\x5A\xA5\x5A"
 
 ser = serial.Serial(
     "/dev/ttyACM0",
-    115200,
+    1_000_000,
     timeout=0
 )
 
 app = QtWidgets.QApplication([])
 
+# ------------------------
+# Graficas
+# ------------------------
 win = pg.GraphicsLayoutWidget(title="ADC + Filtro IIR en tiempo real")
 p1 = win.addPlot(title="Entrada (VIN)")
 curve_in = p1.plot(pen='y')
@@ -24,16 +27,22 @@ win.nextRow()
 p2 = win.addPlot(title="Salida filtrada (VOUT)")
 curve_out = p2.plot(pen='c')
 
-# Ventana de FFT
-win2 = pg.GraphicsLayoutWidget(title="Espectro")
-pfft = win2.addPlot(title="FFT de salida")
-curve_fft = pfft.plot(pen='m')
+# Configurar ejes Y en volts 0..3.3
+p1.setYRange(0, 3.3)
+p2.setYRange(0, 3.3)
+ticks_v = [(v, f"{v:.1f}") for v in np.arange(0, 3.31, 0.1)]
+p1.getAxis('left').setTicks([ticks_v])
+p2.getAxis('left').setTicks([ticks_v])
 
 win.show()
-win2.show()
 
 buffer = bytearray()
-fs_actual = 200000   # valor por defecto en caso de no recibir todavía
+
+# Fs por defecto hasta recibir tramas
+fs_actual = 200000
+
+# Constante para convertir counts ADC → volts
+ADC_TO_V = 3.3 / 4095.0
 
 
 def leer_trama():
@@ -43,17 +52,17 @@ def leer_trama():
     if data:
         buffer.extend(data)
 
-    # Evitar buffer infinito
+    # Evitar crecimiento excesivo
     if len(buffer) > 200000:
         buffer = buffer[-50000:]
 
     idx = buffer.find(MAGIC)
     if idx == -1:
-        return None, None
+        return None, None, None
 
     header_size = 4 + 4 + 2 + 2
     if len(buffer) < idx + header_size:
-        return None, None
+        return None, None, None
 
     p = idx + 4
     fs = struct.unpack("<I", buffer[p:p+4])[0]; p += 4
@@ -66,7 +75,7 @@ def leer_trama():
     total_size = header_size + payload_size + 4
 
     if len(buffer) < idx + total_size:
-        return None, None
+        return None, None, None
 
     frame = buffer[idx : idx + total_size]
     del buffer[: idx + total_size]
@@ -74,33 +83,29 @@ def leer_trama():
     payload = frame[12:-4]
 
     data = np.frombuffer(payload, dtype=np.uint16).reshape(-1, 2)
-    vin = data[:, 0]
-    vout = data[:, 1]
 
-    return vin, vout
+    vin = data[:, 0] * ADC_TO_V        # → convertir a voltios
+    vout = data[:, 1] * ADC_TO_V
+
+    return vin, vout, n
 
 
 def update():
     global fs_actual
-    vin, vout = leer_trama()
+    vin, vout, n = leer_trama()
     if vin is None:
         return
 
-    MAXPLOT = 2000
-    curve_in.setData(vin[-MAXPLOT:])
-    curve_out.setData(vout[-MAXPLOT:])
+    t = np.arange(n) * (1e6 / fs_actual)
 
-    # FFT con ventana Hann
-    w = np.hanning(len(vout))
-    fft = np.abs(np.fft.rfft((vout - np.mean(vout)) * w))
-    freqs = np.fft.rfftfreq(len(vout), 1/fs_actual)
+    MAXPLOT = 100
 
-    curve_fft.setData(freqs, fft)
-
+    curve_in.setData(t[-MAXPLOT:], vin[-MAXPLOT:])
+    curve_out.setData(t[-MAXPLOT:], vout[-MAXPLOT:])
 
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
-timer.start(10)
+timer.start(1)
 
 
 def salir(*args):

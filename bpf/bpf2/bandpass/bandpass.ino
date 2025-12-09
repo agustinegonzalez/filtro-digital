@@ -1,93 +1,88 @@
 #include <Arduino.h>
 
-//================= CONFIGURACIÓN GENERAL =================//
-const uint32_t FS_HZ = 200000;     // Frecuencia de muestreo
-const uint16_t N_BLOCK = 512;
-const uint16_t N_DMA = N_BLOCK * 2;
-const int ADC_MID = 2048;
+// --- CONFIGURACION ---
+const uint32_t FS_HZ = 300000u;   // 300 kHz de muestreo
+const uint16_t N_BLOCK = 512;     // Bloque de procesamiento (igual que tu ejemplo)
+const uint16_t N_DMA = N_BLOCK * 2; // Buffer Doble
+const int ADC_MID = 2048;         // ADC 12-bit mid
 
-//================= COEFICIENTES DEL BIQUAD (Q14) =================//
-// Chebyshev I, fc=44kHz, BW=7kHz, ganancia≈8
-// b = [ 0.7970982   0        -0.7970982 ]
-// a = [ 1         -0.33947239   0.80072545 ]
+// --- COEFICIENTES Q14 (escalado por 2^14 = 16384) ---
+const int32_t B0_INT = 13060;   // 0.7970982 * 16384
+const int32_t B1_INT = 0;       // 0.0 * 16384
+const int32_t B2_INT = -13060;  // -0.7970982 * 16384
+const int32_t A1_INT = -5562;   // -0.33947239 * 16384
+const int32_t A2_INT = 13119;   // 0.80072545 * 16384
 
-int32_t B0_INT = 13054;
-int32_t B1_INT = 0;
-int32_t B2_INT = -13054;
-int32_t A1_INT = 5560;
-int32_t A2_INT = -13114;
-
-//================= ESTRUCTURA BIQUAD =================//
+// --- ESTRUCTURA DEL FILTRO (Direct Form I, Q14) ---
 struct Biquad {
   int32_t x1 = 0, x2 = 0;
   int32_t y1 = 0, y2 = 0;
 
   inline int32_t step(int32_t x0) {
+    // Usar acumulador de 64 bits para evitar overflow
     int64_t acc = 0;
+    acc += (int64_t)B0_INT * (int64_t)x0;
+    acc += (int64_t)B1_INT * (int64_t)x1;
+    acc += (int64_t)B2_INT * (int64_t)x2;
+    // RESTAR los términos de la parte denominadora estándar:
+    // y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
+    acc -= (int64_t)A1_INT * (int64_t)y1;
+    acc -= (int64_t)A2_INT * (int64_t)y2;
 
-    acc += (int64_t)B0_INT * x0;
-    acc += (int64_t)B1_INT * x1;
-    acc += (int64_t)B2_INT * x2;
-    acc -= (int64_t)A1_INT * y1;
-    acc -= (int64_t)A2_INT * y2;
+    // Shift Q14
+    int32_t y0 = (int32_t)(acc >> 14);
 
-    int32_t y0 = acc >> 14;
-
-    // Protección contra clipping interno
-    if (y0 > 20000) y0 = 20000;
-    if (y0 < -20000) y0 = -20000;
-
-    x2 = x1;  x1 = x0;
-    y2 = y1;  y1 = y0;
+    // Actualizar estados
+    x2 = x1; x1 = x0;
+    y2 = y1; y1 = y0;
 
     return y0;
   }
 };
-
 Biquad filtro;
 
-//================= BUFFERS =================//
+// --- BUFFERS ---
 volatile uint16_t adc_dma_buf[N_DMA];
-
 struct Frame { uint16_t vin; uint16_t vout; };
 Frame tx_buf[N_BLOCK];
 
 volatile bool procesar_mitad1 = false;
 volatile bool procesar_mitad2 = false;
 
-//================= HAL =================//
+// --- VARIABLES HAL ---
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
-TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim3; 
 
-//================= PROTOCOLO =================//
+// --- PROTOCOLO SERIAL (igual que tu ejemplo) ---
 const uint8_t MAGIC[4] = {0xA5, 0x5A, 0xA5, 0x5A};
 
-
-//=========== DECLARACIONES HAL ===========//
+// Declaraciones HAL (vienen del core/STM32CubeMX)
 extern "C" void SystemClock_Config(void);
 void MX_GPIO_Init(void);
 void MX_DMA_Init(void);
 void MX_ADC1_Init(void);
 void MX_TIM3_Init(void);
 
-
-//================= SETUP =================//
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(1000000);
 
+  // Inicializar Hardware Bajo Nivel
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_TIM3_Init();
 
+  // Calibrar ADC
   HAL_ADCEx_Calibration_Start(&hadc1);
+
+  // Arrancar DMA Circular (ADC -> adc_dma_buf)
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buf, N_DMA);
+
+  // Arrancar Timer (genera trigger de muestreo)
   HAL_TIM_Base_Start(&htim3);
 }
 
-
-//================= LOOP =================//
 void loop() {
   static uint16_t seq = 0;
 
@@ -104,18 +99,14 @@ void loop() {
   }
 }
 
-
-//================= PROCESAR =================//
+// --- PROCESAMIENTO DEL BLOQUE ---
 void procesar_bloque(uint16_t offset) {
   for (int i = 0; i < N_BLOCK; i++) {
-
     uint16_t raw = adc_dma_buf[offset + i];
-    int32_t input = (int32_t)raw - ADC_MID;
-
+    int32_t input = (int32_t)raw - ADC_MID;      // centrar en 0
     int32_t output = filtro.step(input);
 
-    int32_t out_final = output + ADC_MID;
-
+    int32_t out_final = output + ADC_MID;       // volver a 0..4095
     if (out_final < 0) out_final = 0;
     if (out_final > 4095) out_final = 4095;
 
@@ -124,8 +115,7 @@ void procesar_bloque(uint16_t offset) {
   }
 }
 
-
-//================= ENVÍO =================//
+// --- ENVIO POR SERIAL del bloque (misma estructura que tu ejemplo) ---
 void enviar_datos(uint16_t seq) {
   Serial.write(MAGIC, 4);
   uint32_t fs = FS_HZ;
@@ -137,8 +127,7 @@ void enviar_datos(uint16_t seq) {
   Serial.write(MAGIC, 4);
 }
 
-
-//================= INTERRUPCIONES DMA =================//
+// --- INTERRUPCIONES y callbacks ---
 extern "C" void DMA1_Channel1_IRQHandler(void) {
   HAL_DMA_IRQHandler(&hdma_adc1);
 }
@@ -151,8 +140,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
   procesar_mitad2 = true;
 }
 
+// =============================================================
+// CONFIGURACION DE HARDWARE (ADC, TIM, DMA)
+// =============================================================
 
-//================= CONFIG. DISPOSITIVOS =================//
 void MX_ADC1_Init(void) {
   ADC_ChannelConfTypeDef sConfig = {0};
   hadc1.Instance = ADC1;
@@ -170,15 +161,18 @@ void MX_ADC1_Init(void) {
   HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 }
 
-
 void MX_TIM3_Init(void) {
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 71;
+  // Para obtener fs = 300 kHz con reloj APB1 a 72 MHz:
+  // (Prescaler+1) * (Period+1) = 72e6 / 300e3 = 240
+  // elegimos Prescaler = 23 -> 24; Period = 9 -> 10; 24*10 = 240
+  htim3.Init.Prescaler = 23;
   htim3.Init.Period = 9;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   HAL_TIM_Base_Init(&htim3);
 
   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
@@ -188,7 +182,6 @@ void MX_TIM3_Init(void) {
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig);
 }
-
 
 void MX_DMA_Init(void) {
   __HAL_RCC_DMA1_CLK_ENABLE();
@@ -209,8 +202,6 @@ void MX_DMA_Init(void) {
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 }
 
-
 void MX_GPIO_Init(void) {
   __HAL_RCC_GPIOA_CLK_ENABLE();
 }
-

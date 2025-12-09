@@ -1,30 +1,31 @@
 #include <Arduino.h>
 
-// --- CONFIGURACION ---
+
 const uint32_t FS_HZ = 300000u;   // 300 kHz de muestreo
-const uint16_t N_BLOCK = 512;     // Bloque de procesamiento (igual que tu ejemplo)
+const uint16_t N_BLOCK = 512;     // Bloque de procesamiento
 const uint16_t N_DMA = N_BLOCK * 2; // Buffer Doble
 const int ADC_MID = 2048;         // ADC 12-bit mid
 
 // --- COEFICIENTES Q14 (escalado por 2^14 = 16384) ---
-const int32_t B0_INT = 13060;   // 0.7970982 * 16384
-const int32_t B1_INT = 0;       // 0.0 * 16384
-const int32_t B2_INT = -13060;  // -0.7970982 * 16384
-const int32_t A1_INT = -5562;   // -0.33947239 * 16384
-const int32_t A2_INT = 13119;   // 0.80072545 * 16384
 
-// --- ESTRUCTURA DEL FILTRO (Direct Form I, Q14) ---
+const int32_t B0_INT = 0.54850449 * 16384;   
+const int32_t B1_INT = 0;       // 0.0 * 16384
+const int32_t B2_INT = -0.54850449 * 16384;  
+const int32_t A1_INT = -1.12932472 * 16384;   
+const int32_t A2_INT = 0.86287388 * 16384;    
+
+
 struct Biquad {
   int32_t x1 = 0, x2 = 0;
   int32_t y1 = 0, y2 = 0;
 
   inline int32_t step(int32_t x0) {
-    // Usar acumulador de 64 bits para evitar overflow
+    
     int64_t acc = 0;
     acc += (int64_t)B0_INT * (int64_t)x0;
     acc += (int64_t)B1_INT * (int64_t)x1;
     acc += (int64_t)B2_INT * (int64_t)x2;
-    // RESTAR los términos de la parte denominadora estándar:
+    
     // y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
     acc -= (int64_t)A1_INT * (int64_t)y1;
     acc -= (int64_t)A2_INT * (int64_t)y2;

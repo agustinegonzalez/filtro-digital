@@ -34,10 +34,6 @@ data_vin = deque([2048]*4096, maxlen=4096)
 data_vout = deque([2048]*4096, maxlen=4096)
 rx_buffer = bytearray()
 FS_FROM_PACKET = FS_REAL
-
-# -----------------------------------------------------------
-#  HILO DE LECTURA SERIAL
-# -----------------------------------------------------------
 def leer_serial():
     global rx_buffer, FS_FROM_PACKET
     
@@ -101,7 +97,7 @@ line_in, = ax.plot([], [], COLOR_IN, lw=1.2, label="Entrada VIN")
 line_out, = ax.plot([], [], COLOR_OUT, lw=1.5, label="Salida VOUT")
 
 ax.grid(True, color=GRID_COLOR, alpha=0.25)
-ax.set_ylim(-0.2, 3.5)
+ax.set_ylim(-0.2, 4.5)
 ax.set_xlim(0, 0.5)
 ax.set_xlabel("Tiempo (ms)")
 ax.set_ylabel("Voltaje [V]")

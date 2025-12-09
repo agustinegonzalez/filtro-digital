@@ -130,7 +130,7 @@ def update(frame):
         return line_in, line_out
 
     # Ventana mostrada: 0.5 ms
-    window_pts = int(0.5 * fs / 1000)
+    window_pts = int(0.2 * fs / 1000)
     t_axis = (np.arange(window_pts)/fs)*1000
 
     try:

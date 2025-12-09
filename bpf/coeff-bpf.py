@@ -1,27 +1,21 @@
 import numpy as np
 from scipy import signal
-from scipy.signal import iirpeak
 
-fs = 200000       # Hz
-Fc = 44000        # Hz
-BW = 7000         # Hz
+fs = 200000
+fc = 44000
+bw = 7000
 
-fp1 = Fc - BW/2   # 40500 Hz
-fp2 = Fc + BW/2   # 47500 Hz
-order = 1
-Wn = [fp1/(fs/2), fp2/(fs/2)]
+f1 = (fc - bw/2) / (fs/2)
+f2 = (fc + bw/2) / (fs/2)
 
-# Orden 2 = un solo biquad
-b, a = signal.butter(order, Wn, btype='bandpass')
+b, a = signal.cheby1(
+    N=1,              # ← orden 1 → Biquad
+    rp=3,             # ripple 3 dB
+    Wn=[f1, f2],      # banda
+    btype='bandpass'
+)
 
-print("b =", b)
-print("a =", a)
-
-f0 = 44000
-
-Q = f0 / BW  # Q ≈ 6.28
-
-b, a = iirpeak(f0, Q, fs=fs)
-print("botro =", b)
-print("aotro =", a)
+b = b * 8   # ganancia v/v 8
+print(b)
+print(a)
 

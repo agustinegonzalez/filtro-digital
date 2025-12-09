@@ -74,95 +74,96 @@ def visualizer(b, a, fs, fc):
     plt.show()
 
     return frequencys, magnitud_db, fase
-class Filtro:
-    def __init__(self, b, a):
-        self.b = np.array(b)
-        self.a = np.array(a)
-        self.N = max(len(a), len(b))
-        self.w = np.zeros(self.N - 1)
-
-    def sample_processing(self, x):
-        # Direct Form II Transposed
-        y = self.b[0] * x + self.w[0]
-
-        for i in range(1, self.N - 1):
-            self.w[i - 1] = self.b[i] * x + self.w[i] - self.a[i] * y
-
-        self.w[self.N - 2] = self.b[self.N - 1] * x - self.a[self.N - 1] * y
-
-        return y
-
-    def signal_processing(self, signal):
-        out = np.zeros_like(signal)
-        for i, x in enumerate(signal):
-            out[i] = self.sample_processing(x)
-        return out
-
-def ejemplo_aplicacion():
-    # Generar señal de prueba
-    fs = 600000
-    dur = 0.001  # 2 ms
-    t = np.linspace(0, dur, int(fs * dur), endpoint=False) 
-    f1 = 2400      # 5 kHz (DEBE atenuarse)
-    f2 = 50000     # 50 kHz (DEBE pasar)
-
-    señal = np.sin(2*np.pi*f1*t) + 0.5*np.sin(2*np.pi*f2*t)
-    # Diseñar filtro (corte en  Hz)
-    b, a = design_filter(fs, fc=33000, gain=10**(12/20), order=4,filterType='chebyshev',btype='high',Amax=3.0)
-    
-    # Crear filtro
-    filtro = Filtro(b, a)
-    
-    # Procesar señal
-    señal_filtrada = filtro.signal_processing(señal)
-    
-    # Visualizar resultados
-    plt.figure(figsize=(12, 6))
-    
-    plt.subplot(2, 1, 1)
-    plt.plot(t, señal)
-    plt.title('Señal Original')
-    plt.xlabel('Tiempo [s]')
-    plt.ylabel('Amplitud')
-    
-    plt.subplot(2, 1, 2)
-    plt.plot(t, señal_filtrada)
-    plt.title('Señal Filtrada')
-    plt.xlabel('Tiempo [s]')
-    plt.ylabel('Amplitud')
-    ax = plt.gca()
-
-    # Divisiones principales cada 10 us
-    ax.xaxis.set_major_locator(plt.MultipleLocator(10e-6))
-
-    # Divisiones secundarias cada 2 us
-    ax.xaxis.set_minor_locator(plt.MultipleLocator(2e-6))
-
-    ax.grid(True, which='both', linestyle='--', alpha=0.5)
-
-    # Hacer zoom para contar ciclos
-    plt.xlim(0, 100e-6)   # 100 microsegundos
-     
-    plt.tight_layout()
-    plt.show()
-
-#b, a = iirfilter(4, Wn=33000/(500000/2), btype='highpass')
-#print("b =", b)
-#print("a =", a)
-# Ejecutar ejemplo
-ejemplo_aplicacion()
-
+#class Filtro:
+#    def __init__(self, b, a):
+#        self.b = np.array(b)
+#        self.a = np.array(a)
+#        self.N = max(len(a), len(b))
+#        self.w = np.zeros(self.N - 1)
+#
+#    def sample_processing(self, x):
+#        # Direct Form II Transposed
+#        y = self.b[0] * x + self.w[0]
+#
+#        for i in range(1, self.N - 1):
+#            self.w[i - 1] = self.b[i] * x + self.w[i] - self.a[i] * y
+#
+#        self.w[self.N - 2] = self.b[self.N - 1] * x - self.a[self.N - 1] * y
+#
+#        return y
+#
+#    def signal_processing(self, signal):
+#        out = np.zeros_like(signal)
+#        for i, x in enumerate(signal):
+#            out[i] = self.sample_processing(x)
+#        return out
+#
+#def ejemplo_aplicacion():
+#    # Generar señal de prueba
+#    fs = 600000
+#    dur = 0.001  # 2 ms
+#    t = np.linspace(0, dur, int(fs * dur), endpoint=False) 
+#    f1 = 2400      # 5 kHz (DEBE atenuarse)
+#    f2 = 50000     # 50 kHz (DEBE pasar)
+#
+#    señal = np.sin(2*np.pi*f1*t) + 0.5*np.sin(2*np.pi*f2*t)
+#    # Diseñar filtro (corte en  Hz)
+#    b, a = design_filter(fs, fc=33000, gain=10**(12/20), order=4,filterType='chebyshev',btype='high',Amax=3.0)
+#    
+#    # Crear filtro
+#    filtro = Filtro(b, a)
+#    
+#    # Procesar señal
+#    señal_filtrada = filtro.signal_processing(señal)
+#    
+#    # Visualizar resultados
+#    plt.figure(figsize=(12, 6))
+#    
+#    plt.subplot(2, 1, 1)
+#    plt.plot(t, señal)
+#    plt.title('Señal Original')
+#    plt.xlabel('Tiempo [s]')
+#    plt.ylabel('Amplitud')
+#    
+#    plt.subplot(2, 1, 2)
+#    plt.plot(t, señal_filtrada)
+#    plt.title('Señal Filtrada')
+#    plt.xlabel('Tiempo [s]')
+#    plt.ylabel('Amplitud')
+#    ax = plt.gca()
+#
+#    # Divisiones principales cada 10 us
+#    ax.xaxis.set_major_locator(plt.MultipleLocator(10e-6))
+#
+#    # Divisiones secundarias cada 2 us
+#    ax.xaxis.set_minor_locator(plt.MultipleLocator(2e-6))
+#
+#    ax.grid(True, which='both', linestyle='--', alpha=0.5)
+#
+#    # Hacer zoom para contar ciclos
+#    plt.xlim(0, 100e-6)   # 100 microsegundos
+#     
+#    plt.tight_layout()
+#    plt.show()
+#
+##b, a = iirfilter(4, Wn=33000/(500000/2), btype='highpass')
+##print("b =", b)
+##print("a =", a)
+## Ejecutar ejemplo
+#ejemplo_aplicacion()
+#
 # Ejemplo de uso
 if __name__ == "__main__":
     # Especificaciones
     fs = 200e3   
-    fc = 33e3 
-    gain = 12.5  # Ganancia de 2 (6 dB)
-    order = 4
-    btype = 'high'
+    fc = 44e3 
+    gain = 8  # Ganancia de 2 (6 dB)
+    order = 1
+    filtertype = 'chebyshev'
+    btype = 'bandpass'
     Amax = 3.0
     # Diseñar filtro
-    b, a = design_filter(fs, fc, gain, order, 'butterworth',btype,Amax)
+    b, a = design_filter(fs, fc, gain, order, filtertype,btype,Amax)
 
     print("Coeficientes del filtro:")
     print(f"Numerador b: {b}")

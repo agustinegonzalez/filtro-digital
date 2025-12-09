@@ -5,10 +5,6 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from collections import deque
 import threading
-
-# ============================
-#      CONFIGURACIÓN
-# ============================
 PORT = "/dev/ttyACM0"
 BAUD = 115200
 MAGIC = b"\xA5\x5A\xA5\x5A"
@@ -25,9 +21,6 @@ COLOR_OUT = "#FF3366"    # rosa rojizo
 GRID_COLOR = "#AAAAAA"
 BG_COLOR = "#1E1E1E"
 
-# ============================
-#    ABRIR PUERTO SERIAL
-# ============================
 try:
     ser = serial.Serial(PORT, BAUD, timeout=0.1)
     ser.reset_input_buffer()
@@ -35,19 +28,11 @@ try:
 except Exception as e:
     print(f"Error abriendo {PORT}: {e}")
     exit()
-
-# ============================
-#   VARIABLES COMPARTIDAS
-# ============================
 data_vin = deque([2048]*4096, maxlen=4096)
 data_vout = deque([2048]*4096, maxlen=4096)
 rx_buffer = bytearray()
 FS_FROM_PACKET = FS_REAL
 
-
-# ============================
-#    HILO LECTOR SERIAL
-# ============================
 def leer_serial():
     global rx_buffer, FS_FROM_PACKET
     while True:
@@ -104,10 +89,6 @@ def leer_serial():
 t = threading.Thread(target=leer_serial, daemon=True)
 t.start()
 
-
-# ============================
-#     CONFIGURAR GRÁFICO
-# ============================
 plt.style.use("dark_background")
 fig, ax = plt.subplots(figsize=(11, 6))
 fig.patch.set_facecolor(BG_COLOR)
@@ -128,10 +109,6 @@ ax.set_title("Señal en Tiempo Real (pasabanda digital)")
 
 ax.legend(loc="upper right")
 
-
-# ============================
-#  CONTROL DE TECLADO
-# ============================
 def on_key(event):
     global PAUSADO
     if event.key == " ":
@@ -141,10 +118,6 @@ def on_key(event):
 
 fig.canvas.mpl_connect("key_press_event", on_key)
 
-
-# ============================
-#     BUCLE DE ANIMACIÓN
-# ============================
 def update(frame):
     if PAUSADO:
         return line_in, line_out

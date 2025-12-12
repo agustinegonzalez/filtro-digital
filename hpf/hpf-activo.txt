@@ -1,0 +1,13 @@
+=== Diseño: Butterworth 4º (HP) — especificaciones ===
+fc = 33000 Hz, Ganancia total (v/v) = 12.25, Amax = 3 dB (Butterworth)
+
+Valores por sección Sallen-Key (R1=R2, C1=C2):
+
+     Sección                         Pares de polos        Q  omega0 (rad/s)  fc (Hz)  C1=C2 (F)  R1=R2 (Ω)  K (SK)  Rg_sk (Ω)  Rf_sk (Ω)
+Sallen-Key 1 -0.382683+0.92388j, -0.382683-0.92388j  1.30656          207345    33000      1e-09    4822.88 2.23463      10000    12346.3
+Sallen-Key 2 -0.92388+0.382683j, -0.92388-0.382683j 0.541196          207345    33000      1e-09    4822.88 1.15224      10000    1522.41
+Sallen-Key 3 -0.92388-0.382683j, -0.92388+0.382683j 0.541196          207345    33000      1e-09    4822.88 1.15224      10000    1522.41
+Sallen-Key 4 -0.382683-0.92388j, -0.382683+0.92388j  1.30656          207345    33000      1e-09    4822.88 2.23463      10000    12346.3
+
+Etapa amplificadora final (para obtener la ganancia total):
+{'Etapa': 'Amplificador final (no-inversor)', 'K_gain (v/v)': 12.25, 'Rg_gain (Ω)': 10000.0, 'Rf_gain (Ω)': 112500.0}

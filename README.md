@@ -1,9 +1,8 @@
 # Proceso de implementacion
 
-1. Abrir STM32CubeIDE
-2. Pegar el código C del ADC + UART + filtro
+1. Abrir ArduinoIDE
+2. Pegar el código
 3. Compilar
-4. Flashear la Bluepill con el ST-Link
 
 La Bluepill queda funcionando como un "filtro digital en tiempo real".
 
